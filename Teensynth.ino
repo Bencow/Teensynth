@@ -6,7 +6,8 @@ MIDI_CREATE_DEFAULT_INSTANCE();
 
 const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 
-const int ledPin = 6;
+const int ledMidi = 5;
+const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int oscInterruptFreq = 40000;//fréquence d'interuption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
@@ -29,9 +30,10 @@ void setup()
   {
     tab_note[i] = -1;
   }
-
+  //tests
+  pinMode(ledMidi, OUTPUT);
   pinMode(test_input_pin, INPUT);
-  pinMode(ledPin, OUTPUT);
+  pinMode(built_in_ledPin, OUTPUT);
   pinMode(audioPin, OUTPUT);
 
   MIDI.begin(MIDI_CHANNEL_OMNI);
@@ -57,7 +59,7 @@ bool is_empty()
 
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
-  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledMidi, HIGH);
   
   if (velocity == 0) onNoteOff(channel, note, velocity);
   else //Si on enfonce bien une touche
@@ -77,7 +79,7 @@ void onNoteOn(byte channel, byte note, byte velocity)
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
-  digitalWrite(ledPin, LOW);
+  digitalWrite(ledMidi, LOW);
   
     for(int i = 0 ; i < nb_note_on ; i++)
     {
@@ -122,12 +124,12 @@ void oscInterrupt()
     if (phase && gate) 
     {
       digitalWrite(audioPin, HIGH);
-      digitalWrite(ledPin, HIGH);
+      digitalWrite(built_in_ledPin, HIGH);
     }
     else 
     {
       digitalWrite(audioPin, LOW);
-      digitalWrite(ledPin, LOW);
+      digitalWrite(built_in_ledPin, LOW);
     }
     phase = !phase;
   }
@@ -136,12 +138,12 @@ void oscInterrupt()
 void loop() 
 {
   //usbMIDI.read();
-  //MIDI.read();
+  MIDI.read();
 
   //Petit test pour jouer avec un pushbuton
   if( digitalRead(test_input_pin) == HIGH )
   {
-    //digitalWrite(ledPin, HIGH);
+    digitalWrite(built_in_ledPin, HIGH);
     
     //On envoie la dernière note
     gate = true;
@@ -149,7 +151,7 @@ void loop()
   }
   if( digitalRead(test_input_pin) == LOW)
   {
-    //digitalWrite(ledPin, LOW);
+    digitalWrite(built_in_ledPin, LOW);
     gate = false; 
   }
 }
