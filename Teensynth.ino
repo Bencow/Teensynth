@@ -9,14 +9,14 @@ const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
-const int oscInterruptFreq = 40000;//fréquence d'interuption = Fréquence d'echantillonnage
+const int oscInterruptFreq = 96000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_S];//à refaire plus tars
 int nb_note_on = 0;
 
-volatile long oscPeriod = 240;//On commence par un la4
-volatile int oscFreq = 440;
+volatile long oscPeriod = 240;
+volatile int oscFreq = 440;//On commence par un la4
 volatile long oscCounter = 0;
 volatile bool phase = false;
 volatile bool gate = false;
@@ -43,7 +43,8 @@ void setup()
   //usbMIDI.setHandleNoteOff(onNoteOff);
 
   Timer1.initialize(1000000 / oscInterruptFreq);
-  Timer1.attachInterrupt(oscInterrupt, 1000000 / oscInterruptFreq);
+  //Timer1.attachInterrupt(oscInterrupt, 1000000 / oscInterruptFreq);
+  Timer1.attachInterrupt(oscInterrupt);
 }
 
 bool is_empty()
@@ -117,11 +118,11 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  
-  if(oscCounter >= 1000000 / (2 * oscFreq * oscInterruptFreq))
+  //if(oscCounter >= 45)
+  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))
   {
     oscCounter = 0;
-    if (phase && gate) 
+    if (phase && gate)
     {
       digitalWrite(audioPin, HIGH);
       digitalWrite(built_in_ledPin, HIGH);
@@ -147,11 +148,11 @@ void loop()
     
     //On envoie la dernière note
     gate = true;
-    //oscPeriod = 0.0122727273;//1/440 (la4)
+    oscFreq = 440;
   }
   if( digitalRead(test_input_pin) == LOW)
   {
-    digitalWrite(built_in_ledPin, LOW);
+    //digitalWrite(built_in_ledPin, LOW);
     gate = false; 
   }
 }
