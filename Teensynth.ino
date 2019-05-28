@@ -8,13 +8,14 @@ const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 
 const int ledPin = 6;
 const int audioPin = 8;
-const int oscInterruptFreq = 96000;
+const int oscInterruptFreq = 40000;//fréquence d'interuption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-int tab_note[TAB_S];
+int tab_note[TAB_S];//à refaire plus tars
 int nb_note_on = 0;
 
-volatile long oscPeriod = 240;
+volatile long oscPeriod = 240;//On commence par un la4
+volatile int oscFreq = 440;
 volatile long oscCounter = 0;
 volatile bool phase = false;
 volatile bool gate = false;
@@ -114,16 +115,19 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  if (oscCounter >= oscPeriod)
+  
+  if(oscCounter >= 1000000 / (2 * oscFreq * oscInterruptFreq))
   {
     oscCounter = 0;
     if (phase && gate) 
     {
       digitalWrite(audioPin, HIGH);
+      digitalWrite(ledPin, HIGH);
     }
     else 
     {
       digitalWrite(audioPin, LOW);
+      digitalWrite(ledPin, LOW);
     }
     phase = !phase;
   }
@@ -133,18 +137,19 @@ void loop()
 {
   //usbMIDI.read();
   //MIDI.read();
-  
+
+  //Petit test pour jouer avec un pushbuton
   if( digitalRead(test_input_pin) == HIGH )
   {
-    digitalWrite(ledPin, HIGH);
+    //digitalWrite(ledPin, HIGH);
     
     //On envoie la dernière note
-    gate = true; 
-    oscPeriod = 0.0122727273;//1/440 (la4)
+    gate = true;
+    //oscPeriod = 0.0122727273;//1/440 (la4)
   }
   if( digitalRead(test_input_pin) == LOW)
   {
-    digitalWrite(ledPin, LOW);
+    //digitalWrite(ledPin, LOW);
     gate = false; 
   }
 }
