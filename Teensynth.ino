@@ -7,7 +7,7 @@ MIDI_CREATE_DEFAULT_INSTANCE();
 const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 
 const int ledPin = 6;
-const int audioPin = 0;
+const int audioPin = 8;
 const int oscInterruptFreq = 96000;
 const float masterTune = 440.f;
 
@@ -139,11 +139,12 @@ void loop()
     digitalWrite(ledPin, HIGH);
     
     //On envoie la dernière note
-    //gate = true; 
-    //oscPeriod = 0.0022727273;//1/440
+    gate = true; 
+    oscPeriod = 0.0122727273;//1/440 (la4)
   }
   if( digitalRead(test_input_pin) == LOW)
   {
     digitalWrite(ledPin, LOW);
+    gate = false; 
   }
 }
