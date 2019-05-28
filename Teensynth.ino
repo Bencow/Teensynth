@@ -61,33 +61,36 @@ bool is_empty()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  
+  /*
   if (velocity == 0) onNoteOff(channel, note, velocity);
   else //Si on enfonce bien une touche
   {
     //On ajoute la note dans le tableau
     tab_note[nb_note_on] = note;
     nb_note_on++;
-  }
-  
+  }*/
+  oscFreq = noteToFreq(note);
+  gate = true;
+  /*
   if( !is_empty() )//Si le tableau n'est pas vide
   {
     //On envoie la dernière note
     gate = true;
     oscPeriod = noteToOscPeriod( tab_note[nb_note_on - 1] -1 );
-  } 
+  }*/
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
   digitalWrite(ledMidi, LOW);
-  
+    gate = false;
+    /*
     for(int i = 0 ; i < nb_note_on ; i++)
     {
       if( tab_note[i] == note )
       {
         for(int j = i ; j < nb_note_on - 1 ; j ++)
-         { 
+         {
           tab_note[j] = tab_note[j+1];
          }
          tab_note[nb_note_on - 1] = -1;
@@ -103,6 +106,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
       gate = true;
       oscPeriod = noteToOscPeriod( tab_note[nb_note_on-1] -1);
     }
+    */
 }
 
 float noteToFreq(int note)
@@ -118,7 +122,6 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  //if(oscCounter >= 45)
   if(oscCounter >= oscInterruptFreq / (2 * oscFreq))
   {
     oscCounter = 0;
@@ -136,11 +139,9 @@ void oscInterrupt()
   }
 }
 
-void loop() 
-{
-  //usbMIDI.read();
-  MIDI.read();
 
+void playWithButton()
+{
   //Petit test pour jouer avec un pushbuton
   if( digitalRead(test_input_pin) == HIGH )
   {
@@ -150,9 +151,16 @@ void loop()
     gate = true;
     oscFreq = 440;
   }
-  if( digitalRead(test_input_pin) == LOW)
+  if(digitalRead(test_input_pin) == LOW)
   {
     //digitalWrite(built_in_ledPin, LOW);
     gate = false; 
   }
+}
+
+void loop() 
+{
+  //usbMIDI.read();
+  MIDI.read();
+  //playWithButton();
 }
