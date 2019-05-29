@@ -1,6 +1,6 @@
 #include <TimerOne.h>
 #include <MIDI.h>
-#define TAB_S 10
+#define TAB_SIZE 10
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -9,15 +9,15 @@ const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
-const int oscInterruptFreq = 96000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-byte tab_note[TAB_S];//à refaire plus tard
+byte tab_note[TAB_SIZE];//à refaire plus tard
 int nb_note_on = 0;
 
 volatile long oscPeriod = 240;
 volatile int oscFreq = 440;//On commence par un la4
-volatile long oscCounter = 0;
+volatile unsigned long oscCounter = 0;
 volatile bool phase = false;
 volatile bool gate = false;
 
@@ -26,7 +26,7 @@ void setup()
 {
   Serial.begin(9600);
 
-  for(int i = 0 ; i < TAB_S ; ++i)
+  for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
     tab_note[i] = -1;
   }
@@ -47,15 +47,7 @@ void setup()
   Timer1.attachInterrupt(oscInterrupt);
 }
 
-bool is_empty()
-{
-  for(int i = 0 ; i < TAB_S ; i++)
-  {
-    if(tab_note[i] != -1)
-      return false;
-  }
-  return true;
-}
+
 
 
 void onNoteOn(byte channel, byte note, byte velocity)
@@ -107,7 +99,6 @@ void onNoteOff(byte channel, byte note, byte velocity)
       gate = true;
       oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
     }
-    
 }
 
 float noteToFreq(int note)
@@ -154,7 +145,7 @@ void playWithButton()
   }
   if(digitalRead(test_input_pin) == LOW)
   {
-    //digitalWrite(built_in_ledPin, LOW);
+    digitalWrite(built_in_ledPin, LOW);
     gate = false; 
   }
 }
