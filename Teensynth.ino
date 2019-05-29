@@ -12,7 +12,7 @@ const int audioPin = 8;
 const int oscInterruptFreq = 96000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-int tab_note[TAB_S];//à refaire plus tars
+byte tab_note[TAB_S];//à refaire plus tard
 int nb_note_on = 0;
 
 volatile long oscPeriod = 240;
@@ -60,31 +60,32 @@ bool is_empty()
 
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
-  digitalWrite(ledMidi, HIGH);
-  /*
+  //digitalWrite(ledMidi, HIGH);
+  oscFreq = noteToFreq(note);
+  gate = true;
+  
   if (velocity == 0) onNoteOff(channel, note, velocity);
   else //Si on enfonce bien une touche
   {
     //On ajoute la note dans le tableau
     tab_note[nb_note_on] = note;
-    nb_note_on++;
-  }*/
-  oscFreq = noteToFreq(note);
-  gate = true;
-  /*
-  if( !is_empty() )//Si le tableau n'est pas vide
+    nb_note_on++;//on incrémente seulement après nb_note_on
+  }
+  
+  
+  if( nb_note_on > 0 )//Si il y a au moins une note en train d'être jouée
   {
     //On envoie la dernière note
     gate = true;
-    oscPeriod = noteToOscPeriod( tab_note[nb_note_on - 1] -1 );
-  }*/
+    oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+  }
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
-  digitalWrite(ledMidi, LOW);
-    gate = false;
-    /*
+    //digitalWrite(ledMidi, LOW);
+    //gate = false;
+    
     for(int i = 0 ; i < nb_note_on ; i++)
     {
       if( tab_note[i] == note )
@@ -97,16 +98,16 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     nb_note_on--;
-    if(is_empty)
+    if(nb_note_on <= 0)
     {
       gate = false;
     }
     else
     {
       gate = true;
-      oscPeriod = noteToOscPeriod( tab_note[nb_note_on-1] -1);
+      oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
     }
-    */
+    
 }
 
 float noteToFreq(int note)
