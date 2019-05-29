@@ -114,6 +114,11 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
+  sawtooth_test();
+
+}
+void squareWave()
+{
   if(oscCounter >= oscInterruptFreq / (2 * oscFreq))
   {
     oscCounter = 0;
@@ -129,6 +134,19 @@ void oscInterrupt()
     }
     phase = !phase;
   }
+}
+void sawtooth_test()
+{
+  if(true)
+  {
+    PORTF = oscCounter;
+    digitalWrite(built_in_ledPin, HIGH);
+  }
+  else
+  {
+    digitalWrite(built_in_ledPin, LOW);
+  }
+
 }
 
 
@@ -153,6 +171,6 @@ void playWithButton()
 void loop() 
 {
   //usbMIDI.read();
-  MIDI.read();
-  //playWithButton();
+  //MIDI.read();
+  playWithButton();
 }
