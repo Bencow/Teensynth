@@ -1,6 +1,6 @@
 #include <TimerOne.h>
 #include <MIDI.h>
-#define TAB_SIZE 10
+#define TAB_SIZE 8
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -9,6 +9,7 @@ const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
 const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
+const int debugPin = 9;
 const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
@@ -24,7 +25,7 @@ volatile bool gate = false;
 
 void setup() 
 {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
@@ -35,6 +36,14 @@ void setup()
   pinMode(test_input_pin, INPUT);
   pinMode(built_in_ledPin, OUTPUT);
   pinMode(audioPin, OUTPUT);
+  
+  //initializing the PORTF (pin 38 to 45)
+  int i = 0;
+  for(i = 38 ; i <= 45 ; i++)
+  {
+    pinMode(i, OUTPUT);
+  }
+  
 
   MIDI.begin(MIDI_CHANNEL_OMNI);
   MIDI.setHandleNoteOn(onNoteOn);
@@ -52,31 +61,18 @@ void setup()
 
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
-  //digitalWrite(ledMidi, HIGH);
-  oscFreq = noteToFreq(note);
+  digitalWrite(ledMidi, HIGH);
   gate = true;
   
-  if (velocity == 0) onNoteOff(channel, note, velocity);
-  else //Si on enfonce bien une touche
-  {
-    //On ajoute la note dans le tableau
-    tab_note[nb_note_on] = note;
-    nb_note_on++;//on incrémente seulement après nb_note_on
-  }
-  
-  
-  if( nb_note_on > 0 )//Si il y a au moins une note en train d'être jouée
-  {
-    //On envoie la dernière note
-    gate = true;
-    oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
-  }
+  //On ajoute la note dans le tableau
+  tab_note[nb_note_on] = note;
+  nb_note_on++;//on incrémente seulement après nb_note_on
+  oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
-    //digitalWrite(ledMidi, LOW);
-    //gate = false;
+    digitalWrite(ledMidi, LOW);
     
     for(int i = 0 ; i < nb_note_on ; i++)
     {
@@ -114,22 +110,24 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  sawtooth_test();
-
+  //sawtooth();
+  squareWave();
 }
 void squareWave()
 {
-  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))
+  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
   {
     oscCounter = 0;
     if (phase && gate)
     {
-      digitalWrite(audioPin, HIGH);
+      PORTF = 255;
+      //digitalWrite(audioPin, HIGH);
       digitalWrite(built_in_ledPin, HIGH);
     }
-    else 
+    else
     {
-      digitalWrite(audioPin, LOW);
+      PORTF = 0;
+      //digitalWrite(audioPin, LOW);
       digitalWrite(built_in_ledPin, LOW);
     }
     phase = !phase;
@@ -146,9 +144,20 @@ void sawtooth_test()
   {
     digitalWrite(built_in_ledPin, LOW);
   }
-
 }
-
+void sawtooth()
+{
+  if(gate)
+  {
+    //PORTF = 255 * oscFreq * (oscCounter%255);
+    PORTF = oscFreq * oscCounter * 255 / oscInterruptFreq;
+    //PORTF = oscFreq * 
+  }
+  else
+  {
+    PORTF = 0;
+  }
+}
 
 void playWithButton()
 {
@@ -164,13 +173,13 @@ void playWithButton()
   if(digitalRead(test_input_pin) == LOW)
   {
     digitalWrite(built_in_ledPin, LOW);
-    gate = false; 
+    gate = false;
   }
 }
 
 void loop() 
 {
   //usbMIDI.read();
-  //MIDI.read();
-  playWithButton();
+  MIDI.read();
+  //playWithButton();
 }
