@@ -13,8 +13,9 @@ const int debugPin = 9;
 const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-byte tab_note[TAB_SIZE];//à refaire plus tard
+int tab_note[TAB_SIZE];//à refaire plus tard
 int nb_note_on = 0;
+bool found = false;
 
 volatile long oscPeriod = 240;
 volatile int oscFreq = 440;//On commence par un la4
@@ -25,7 +26,7 @@ volatile bool gate = false;
 
 void setup() 
 {
-  //Serial.begin(9600);
+  Serial.begin(9600);
 
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
@@ -62,39 +63,63 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  gate = true;
-  
+  //oscFreq = noteToFreq(note);
+
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+  
+  gate = true;
+  print_tab(7);
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
+    //gate = false;
+    
     
     for(int i = 0 ; i < nb_note_on ; i++)
     {
-      if( tab_note[i] == note )
+      if( tab_note[i] == note && !found )
       {
+        found = true;
         for(int j = i ; j < nb_note_on - 1 ; j ++)
          {
           tab_note[j] = tab_note[j+1];
          }
          tab_note[nb_note_on - 1] = -1;
+         nb_note_on--;
       }
     }
-    nb_note_on--;
+    
+    
     if(nb_note_on <= 0)
     {
       gate = false;
     }
     else
     {
-      gate = true;
       oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+      gate = true;
+      
     }
+    print_tab(8);
+    found = false;
+}
+
+void print_tab(int val)
+{
+    for(int i = 0 ; i < TAB_SIZE ; i++)
+    {
+      Serial.print(tab_note[i]);
+      Serial.print(" ");
+    }
+    Serial.print(nb_note_on);
+    Serial.print(val);
+    Serial.print(found);
+    Serial.print("\n");
 }
 
 float noteToFreq(int note)
@@ -111,9 +136,9 @@ void oscInterrupt()
 {
   oscCounter++;
   //sawtooth();
-  squareWave();
+  squareWave_8_bit();
 }
-void squareWave()
+void squareWave_8_bit()
 {
   if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
   {
@@ -128,6 +153,24 @@ void squareWave()
     {
       PORTF = 0;
       //digitalWrite(audioPin, LOW);
+      digitalWrite(built_in_ledPin, LOW);
+    }
+    phase = !phase;
+  }
+}
+void squareWave_1_bit()
+{
+  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
+  {
+    oscCounter = 0;
+    if (phase && gate)
+    {
+      digitalWrite(audioPin, HIGH);
+      digitalWrite(built_in_ledPin, HIGH);
+    }
+    else
+    {
+      digitalWrite(audioPin, LOW);
       digitalWrite(built_in_ledPin, LOW);
     }
     phase = !phase;
