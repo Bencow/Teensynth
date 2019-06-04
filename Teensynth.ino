@@ -13,7 +13,8 @@ const int debugPin = 9;
 const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-int tab_note[TAB_SIZE];//à refaire plus tard
+int tab_note[TAB_SIZE];
+int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
 
@@ -31,6 +32,10 @@ void setup()
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
     tab_note[i] = -1;
+  }
+  for(int i = 0 ; i < 255 ; ++i)
+  {
+    tab_entree[i] = 0;
   }
   //tests
   pinMode(ledMidi, OUTPUT);
@@ -69,23 +74,26 @@ void onNoteOn(byte channel, byte note, byte velocity)
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+
+  tab_entree[note] = nb_note_on;
   
   gate = true;
-  print_tab(7);
+  print_tab(8, note);
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
     //gate = false;
-    
-    
+
+    /*
     for(int i = 0 ; i < nb_note_on ; i++)
     {
       if( tab_note[i] == note && !found )
       {
         found = true;
-        for(int j = i ; j < nb_note_on - 1 ; j ++)
+        
+        for(int j = i ; j < nb_note_on - 1 ; j++)
          {
           tab_note[j] = tab_note[j+1];
          }
@@ -93,6 +101,16 @@ void onNoteOff(byte channel, byte note, byte velocity)
          nb_note_on--;
       }
     }
+    */
+    int j = tab_entree[note] - 1;
+    tab_entree[note] = 0;
+    for(j = tab_entree[note] -1 ; j < nb_note_on ; j++)
+    {
+      tab_note[j] = tab_note[j+1];
+      tab_entree[tab_note[j]]--;
+    }
+    tab_note[nb_note_on - 1] = -1;
+    nb_note_on--;
     
     
     if(nb_note_on <= 0)
@@ -105,11 +123,11 @@ void onNoteOff(byte channel, byte note, byte velocity)
       gate = true;
       
     }
-    print_tab(8);
+    print_tab(9, note);
     found = false;
 }
 
-void print_tab(int val)
+void print_tab(int type, int note)
 {
     for(int i = 0 ; i < TAB_SIZE ; i++)
     {
@@ -117,8 +135,8 @@ void print_tab(int val)
       Serial.print(" ");
     }
     Serial.print(nb_note_on);
-    Serial.print(val);
-    Serial.print(found);
+    Serial.print(type);
+    Serial.print(note);
     Serial.print("\n");
 }
 
