@@ -1,6 +1,6 @@
 #include <TimerOne.h>
 #include <MIDI.h>
-#define TAB_SIZE 8
+#define NOMBRE_VOIX 4
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -13,13 +13,13 @@ const int debugPin = 9;
 const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
-int tab_note[TAB_SIZE];
+int tab_note[NOMBRE_VOIX];
 int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
 
-volatile long oscPeriod = 240;
-volatile int oscFreq = 440;//On commence par un la4
+
+volatile int oscFreq[NOMBRE_VOIX];//On commence par un la4
 volatile unsigned long oscCounter = 0;
 volatile bool phase = false;
 volatile bool gate = false;
@@ -29,14 +29,16 @@ void setup()
 {
   //Serial.begin(9600);
 
-  for(int i = 0 ; i < TAB_SIZE ; ++i)
+  for(int i = 0 ; i < NOMBRE_VOIX ; ++i)
   {
     tab_note[i] = -1;
+    oscFreq[i] = 440;
   }
   for(int i = 0 ; i < 255 ; ++i)
   {
     tab_entree[i] = 0;
   }
+  
   //tests
   pinMode(ledMidi, OUTPUT);
   pinMode(test_input_pin, INPUT);
