@@ -10,7 +10,7 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 30000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -68,23 +68,23 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  //oscFreq = noteToFreq(note);
-
+  oscFreq = noteToFreq(note);
+  /*
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
 
   tab_entree[note] = nb_note_on;
-  
-  gate = true;
+  */
+  //gate = true;
   //print_tab(8, note);
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
-    //gate = false;
+    gate = false;
 
     /*
     for(int i = 0 ; i < nb_note_on ; i++)
@@ -102,7 +102,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     */
-    
+    /*
     //int j = tab_entree[note]-1;//moins 1 pour convertir en indice du tab_note
     //tab_entree[note] = 0;
     for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
@@ -126,6 +126,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
     }
     //print_tab(9, note);
     found = false;
+    */
 }
 
 void print_tab(int type, int note)
@@ -154,8 +155,8 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  //sawtooth();
-  squareWave_8_bit();
+  sawtooth();
+  //squareWave_8_bit();
 }
 void squareWave_8_bit()
 {
@@ -177,24 +178,24 @@ void squareWave_8_bit()
     phase = !phase;
   }
 }
-void squareWave_1_bit()
+
+void sawtooth()
 {
-  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
+  if(gate)
   {
-    oscCounter = 0;
-    if (phase && gate)
+    //PORTF = 255 * oscFreq * (oscCounter%255);
+    if(oscCounter * oscFreq >= oscInterruptFreq )
     {
-      digitalWrite(audioPin, HIGH);
-      digitalWrite(built_in_ledPin, HIGH);
+      oscCounter = 0;
     }
-    else
-    {
-      digitalWrite(audioPin, LOW);
-      digitalWrite(built_in_ledPin, LOW);
-    }
-    phase = !phase;
+    PORTF = oscFreq * (oscCounter) * 255 / oscInterruptFreq;
+  }
+  else
+  {
+    PORTF = 0;
   }
 }
+
 void sawtooth_test()
 {
   if(true)
@@ -205,19 +206,6 @@ void sawtooth_test()
   else
   {
     digitalWrite(built_in_ledPin, LOW);
-  }
-}
-void sawtooth()
-{
-  if(gate)
-  {
-    //PORTF = 255 * oscFreq * (oscCounter%255);
-    PORTF = oscFreq * oscCounter * 255 / oscInterruptFreq;
-    //PORTF = oscFreq * 
-  }
-  else
-  {
-    PORTF = 0;
   }
 }
 
