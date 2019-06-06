@@ -1,6 +1,7 @@
 #include <TimerOne.h>
 #include <MIDI.h>
 #define TAB_SIZE 8
+#define N_SINE 1000 //nombre de sample dans la look up table de sin
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -18,6 +19,9 @@ int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
 
+
+int sine_table[N_SINE];
+
 volatile long oscPeriod = 240;
 volatile int oscFreq = 440;//On commence par un la4
 volatile unsigned int oscCounter = 0;
@@ -28,8 +32,8 @@ volatile bool gate = false;
 
 void setup() 
 {
-  //Serial.begin(9600);
-
+  Serial.begin(9600);
+  
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
     tab_note[i] = -1;
@@ -37,6 +41,10 @@ void setup()
   for(int i = 0 ; i < 255 ; ++i)
   {
     tab_entree[i] = 0;
+  }
+  for(int i = 0 ; i < N_SINE ; i++)
+  {
+    sine_table[i] = 255 * sin(2*PI*i/N_SINE);
   }
   //tests
   pinMode(ledMidi, OUTPUT);
@@ -155,8 +163,9 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   oscCounter++;
-  sawtooth();
+  //sawtooth();
   //squareWave_8_bit();
+  sinusoide();
 }
 void squareWave_8_bit()
 {
@@ -188,6 +197,24 @@ void sawtooth()
       oscCounter = 0;
     }
     PORTF = oscCounter * 255 / n_interruption;
+  }
+  else
+  {
+    PORTF = 0;
+  }
+}
+
+void sinusoide()
+{
+  if(gate)
+  {
+    if(oscCounter  >= n_interruption )
+    {
+      oscCounter = 0;
+    }
+    //int var = oscCounter*N_SINE/n_interruption;
+    PORTF = sine_table[oscCounter*N_SINE/n_interruption];
+    //Serial.println(var);
   }
   else
   {
