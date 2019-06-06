@@ -27,7 +27,7 @@ volatile bool gate = false;
 
 void setup() 
 {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
@@ -78,7 +78,7 @@ void onNoteOn(byte channel, byte note, byte velocity)
   tab_entree[note] = nb_note_on;
   
   gate = true;
-  print_tab(8, note);
+  //print_tab(8, note);
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
@@ -102,9 +102,10 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     */
-    int j = tab_entree[note] - 1;
-    tab_entree[note] = 0;
-    for(j = tab_entree[note] -1 ; j < nb_note_on ; j++)
+    
+    //int j = tab_entree[note]-1;//moins 1 pour convertir en indice du tab_note
+    //tab_entree[note] = 0;
+    for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
     {
       tab_note[j] = tab_note[j+1];
       tab_entree[tab_note[j]]--;
@@ -123,7 +124,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
       gate = true;
       
     }
-    print_tab(9, note);
+    //print_tab(9, note);
     found = false;
 }
 
