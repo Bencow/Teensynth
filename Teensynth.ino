@@ -183,33 +183,15 @@ void sawtooth()
 {
   if(gate)
   {
-    //PORTF = 255 * oscFreq * (oscCounter%255);
-    
-    //Serial.println(n_interruption);
     if(oscCounter  >= n_interruption )
     {
       oscCounter = 0;
-      //Serial.print("yo");
     }
-    //PORTF = oscFreq * (oscCounter%255) * 255 / oscInterruptFreq;
     PORTF = oscCounter * 255 / n_interruption;
   }
   else
   {
     PORTF = 0;
-  }
-}
-
-void sawtooth_test()
-{
-  if(true)
-  {
-    PORTF = oscCounter;
-    digitalWrite(built_in_ledPin, HIGH);
-  }
-  else
-  {
-    digitalWrite(built_in_ledPin, LOW);
   }
 }
 
