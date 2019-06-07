@@ -1,6 +1,7 @@
 #include <TimerOne.h>
 #include <MIDI.h>
 #define TAB_SIZE 8
+#define N_SINE 1000 //nombre de sample dans la look up table de sin
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -18,17 +19,21 @@ int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
 
+
+int sine_table[N_SINE];
+
 volatile long oscPeriod = 240;
 volatile int oscFreq = 440;//On commence par un la4
-volatile unsigned long oscCounter = 0;
+volatile unsigned int oscCounter = 0;
+int n_interruption = 90;//nombre d'interruption par période de l'oscillateur
 volatile bool phase = false;
 volatile bool gate = false;
 
 
 void setup() 
 {
-  //Serial.begin(9600);
-
+  Serial.begin(9600);
+  
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
     tab_note[i] = -1;
@@ -36,6 +41,10 @@ void setup()
   for(int i = 0 ; i < 255 ; ++i)
   {
     tab_entree[i] = 0;
+  }
+  for(int i = 0 ; i < N_SINE ; i++)
+  {
+    sine_table[i] = 255 * sin(2*PI*i/N_SINE);
   }
   //tests
   pinMode(ledMidi, OUTPUT);
@@ -62,21 +71,20 @@ void setup()
   Timer1.attachInterrupt(oscInterrupt);
 }
 
-
-
-
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  //oscFreq = noteToFreq(note);
-
+  oscFreq = noteToFreq(note);
+  n_interruption = oscInterruptFreq / oscFreq;//nombre d'interruption par période de l'oscillateur
+  
+  /*
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
 
   tab_entree[note] = nb_note_on;
-  
+  */
   gate = true;
   //print_tab(8, note);
 }
@@ -84,7 +92,7 @@ void onNoteOn(byte channel, byte note, byte velocity)
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
-    //gate = false;
+    gate = false;
 
     /*
     for(int i = 0 ; i < nb_note_on ; i++)
@@ -102,7 +110,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     */
-    
+    /*
     //int j = tab_entree[note]-1;//moins 1 pour convertir en indice du tab_note
     //tab_entree[note] = 0;
     for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
@@ -126,6 +134,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
     }
     //print_tab(9, note);
     found = false;
+    */
 }
 
 void print_tab(int type, int note)
@@ -155,7 +164,8 @@ void oscInterrupt()
 {
   oscCounter++;
   //sawtooth();
-  squareWave_8_bit();
+  //squareWave_8_bit();
+  sinusoide();
 }
 void squareWave_8_bit()
 {
@@ -177,43 +187,34 @@ void squareWave_8_bit()
     phase = !phase;
   }
 }
-void squareWave_1_bit()
-{
-  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
-  {
-    oscCounter = 0;
-    if (phase && gate)
-    {
-      digitalWrite(audioPin, HIGH);
-      digitalWrite(built_in_ledPin, HIGH);
-    }
-    else
-    {
-      digitalWrite(audioPin, LOW);
-      digitalWrite(built_in_ledPin, LOW);
-    }
-    phase = !phase;
-  }
-}
-void sawtooth_test()
-{
-  if(true)
-  {
-    PORTF = oscCounter;
-    digitalWrite(built_in_ledPin, HIGH);
-  }
-  else
-  {
-    digitalWrite(built_in_ledPin, LOW);
-  }
-}
+
 void sawtooth()
 {
   if(gate)
   {
-    //PORTF = 255 * oscFreq * (oscCounter%255);
-    PORTF = oscFreq * oscCounter * 255 / oscInterruptFreq;
-    //PORTF = oscFreq * 
+    if(oscCounter  >= n_interruption )
+    {
+      oscCounter = 0;
+    }
+    PORTF = oscCounter * 255 / n_interruption;
+  }
+  else
+  {
+    PORTF = 0;
+  }
+}
+
+void sinusoide()
+{
+  if(gate)
+  {
+    if(oscCounter  >= n_interruption )
+    {
+      oscCounter = 0;
+    }
+    //int var = oscCounter*N_SINE/n_interruption;
+    PORTF = sine_table[oscCounter*N_SINE/n_interruption];
+    //Serial.println(var);
   }
   else
   {
@@ -239,7 +240,7 @@ void playWithButton()
   }
 }
 
-void loop() 
+void loop()
 {
   //usbMIDI.read();
   MIDI.read();
