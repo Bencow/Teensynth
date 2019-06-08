@@ -1,7 +1,7 @@
 #include <TimerOne.h>
 #include <MIDI.h>
 #define TAB_SIZE 8
-#define N_VOIX 1
+#define N_VOIX 2
 #define N_SINE 1000 //nombre de sample dans la look up table de sin
 
 MIDI_CREATE_DEFAULT_INSTANCE();
@@ -19,8 +19,7 @@ int tab_note[TAB_SIZE];
 int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
-byte audio_output = 0;
-
+int audio_output = 0;
 
 int sine_table[N_SINE];
 
@@ -178,17 +177,15 @@ int noteToOscPeriod(int note)
 void oscInterrupt()
 {
   
-  oscCounter[0]++;
-  
-  /*
   for(int i = 0 ; i < N_VOIX ; ++i)
   {
-    result += squareWave(i);
-  }*/
-  audio_output = squareWave(0);
-
+    oscCounter[i]++;
+    audio_output += squareWave(i);
+  }
+  
+  
   //si l'une des voix est en train de jouer
-  if(gate[0] == true)
+  if(gate[0])
   {
     PORTF = audio_output;
   }
@@ -196,7 +193,7 @@ void oscInterrupt()
   {
     PORTF = 0;
   }
-  
+  audio_output = 0;
   
 }
 byte squareWave(int voix)
