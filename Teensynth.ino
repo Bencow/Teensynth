@@ -12,7 +12,7 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 10000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -25,11 +25,10 @@ int sine_table[N_SINE];
 
 volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
-volatile unsigned int oscCounter[N_VOIX];
 int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
+volatile unsigned int oscCounter[N_VOIX];
 volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
-
 
 void setup()
 {
@@ -103,30 +102,10 @@ void onNoteOn(byte channel, byte note, byte velocity)
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
+    nb_note_on--;    
+    gate[nb_note_on] = false;//changer ça
     
     
-    nb_note_on--;
-    gate[nb_note_on] = false;
-    
-    /*
-    for(int i = 0 ; i < nb_note_on ; i++)
-    {
-      if( tab_note[i] == note && !found )
-      {
-        found = true;
-        
-        for(int j = i ; j < nb_note_on - 1 ; j++)
-         {
-          tab_note[j] = tab_note[j+1];
-         }
-         tab_note[nb_note_on - 1] = -1;
-         nb_note_on--;
-      }
-    }
-    */
-    /*
-    //int j = tab_entree[note]-1;//moins 1 pour convertir en indice du tab_note
-    //tab_entree[note] = 0;
     for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
     {
       tab_note[j] = tab_note[j+1];
@@ -147,8 +126,6 @@ void onNoteOff(byte channel, byte note, byte velocity)
       
     }
     //print_tab(9, note);
-    found = false;
-    */
 }
 
 void print_tab(int type, int note)
@@ -185,7 +162,7 @@ void oscInterrupt()
   
   
   //si l'une des voix est en train de jouer
-  if(gate[0])
+  if(gate[0] || gate[1] || gate[2])
   {
     PORTF = audio_output;
   }
