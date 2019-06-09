@@ -10,7 +10,7 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 45000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -86,30 +86,20 @@ void onNoteOff(byte channel, byte note, byte velocity)
     digitalWrite(ledMidi, LOW);
     //gate = false;
 
-    /*
-    for(int i = 0 ; i < nb_note_on ; i++)
-    {
-      if( tab_note[i] == note && !found )
-      {
-        found = true;
-        
-        for(int j = i ; j < nb_note_on - 1 ; j++)
-         {
-          tab_note[j] = tab_note[j+1];
-         }
-         tab_note[nb_note_on - 1] = -1;
-         nb_note_on--;
-      }
-    }
-    */
     
-    //int j = tab_entree[note]-1;//moins 1 pour convertir en indice du tab_note
-    //tab_entree[note] = 0;
+
+    
+    
+    //tab_entree associe à chaque note son numéro d'arrivé
+    //tab_note[tab_entree[note]] contient la note relachée
     for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
     {
+      //on déplace toutes les autres notes vers la gauche (après celle relachée)
       tab_note[j] = tab_note[j+1];
+      //Les notes d'après gagnent une "priorité"
       tab_entree[tab_note[j]]--;
     }
+    //Réinitialise les emplacements vides à -1
     tab_note[nb_note_on - 1] = -1;
     nb_note_on--;
     
