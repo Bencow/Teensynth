@@ -1,5 +1,6 @@
 #include <TimerOne.h>
 #include <MIDI.h>
+
 #define TAB_SIZE 8
 #define N_VOIX 2
 #define N_SINE 1000 //nombre de sample dans la look up table de sin
@@ -30,7 +31,7 @@ int audio_output = 0;
 
 int sine_table[N_SINE];
 
-
+//VOICES variables
 volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
 int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
@@ -38,10 +39,16 @@ volatile unsigned int oscCounter[N_VOIX];
 volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
+//LFO
+int lfoFreq = 1;
+int lfo_periode = 1000;//en milisecondes
+int lfo_waveshape = 1;
+int lfo_counter = 0;
+int lfo_n_interruption = oscInterruptFreq;
 
 void setup()
 {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
@@ -59,6 +66,11 @@ void setup()
     oscCounter[i] = 0;
     n_interruption[i] = 90; //La 440 pour Fe=40000
   }
+  //LFO
+  lfoFreq = 1;//Hz
+  //calcul du nombre d'interruption par période de l'oscillateur
+  lfo_n_interruption = oscInterruptFreq / lfoFreq;
+  Serial.println(lfo_n_interruption);
 
   //tests
   pinMode(ledMidi, OUTPUT);
@@ -198,9 +210,8 @@ void oscInterrupt()
     {
       audio_output += sinusoide(i);
     }
-    
   }
-  
+  lfo_counter++;
   
   //si l'une des voix est en train de jouer
   if(oneVoiceIsPlaying())
@@ -212,8 +223,37 @@ void oscInterrupt()
     PORTF = 0;
   }
   audio_output = 0;
-  
 }
+
+byte get_LFO_value()
+{
+  //return lfo_sinusoide();
+  return lfo_sawtooth();
+}
+
+byte lfo_sinusoide()//ne marche pas
+{
+  //balance une frequence de 1 Hz
+  //if(oscCounter[voix]  >= n_interruption[voix] )
+  if(lfo_counter >= 10000 )
+  {
+    lfo_counter = 0;
+  }
+  return sine_table[lfo_counter * N_SINE / lfo_n_interruption];
+}
+
+byte lfo_sawtooth()
+{
+  if(lfo_counter  >= lfo_n_interruption)
+  {
+    lfo_counter = 0;
+  }
+  Serial.println(lfo_counter);
+  //Serial.println(lfo_counter * 255 / lfo_n_interruption);
+  return lfo_counter * 255 / lfo_n_interruption;
+}
+
+
 byte squareWave(int voix)
 {
   if(oscCounter[voix] >= oscInterruptFreq / (2 * oscFreq[voix]))//on divise par deux pour changer toutes les 1/2 période
@@ -222,7 +262,7 @@ byte squareWave(int voix)
     if (phase[voix] && gate[voix])
     {
       phase[voix] = !phase[voix];
-      return 255;
+      return get_LFO_value();
     }
     else
     {
@@ -311,11 +351,6 @@ void loop()
   //usbMIDI.read();
   MIDI.read();
   updateWaveShape();
-  /*
-  if(count%10000 == 2)
-  {
-    Serial.println(waveshape_osc);
-  }
-  */
+
   //playWithButton();
 }
