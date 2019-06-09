@@ -30,6 +30,9 @@ volatile unsigned int oscCounter[N_VOIX];
 volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
+byte priority[N_VOIX];
+
+
 void setup()
 {
   //Serial.begin(9600);
@@ -53,6 +56,7 @@ void setup()
     oscFreq[i] = 440;
     oscCounter[i] = 0;
     n_interruption[i] = 90; //La 440 pour Fe=40000
+    priority[i] = 0;
   }
   //tests
   pinMode(ledMidi, OUTPUT);
@@ -82,8 +86,7 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  oscFreq[nb_note_on] = noteToFreq(note);
-  n_interruption[nb_note_on] = oscInterruptFreq / oscFreq[nb_note_on];//nombre d'interruption par période de l'oscillateur
+  
   
   /*
   //On ajoute la note dans le tableau
@@ -93,8 +96,34 @@ void onNoteOn(byte channel, byte note, byte velocity)
 
   tab_entree[note] = nb_note_on;
   */
+  //Si il reste des oscillateurs inactifs
+  if(nb_note_on < N_VOIX)
+  {
+    //on leur fait jouer la note
+    oscFreq[nb_note_on] = noteToFreq(note);
+    n_interruption[nb_note_on] = oscInterruptFreq / oscFreq[nb_note_on];//nombre d'interruption par période de l'oscillateur
+    priority[nb_note_on] = nb_note_on;
+    tab_entree[note] = nb_note_on;
+    gate[nb_note_on] = true;
+  }
+  else
+  {
+    //On envoie cette note à l'oscillateur qui a joué le premier sa note
+    priority[0];//contient l'indice de l'oscillateur à changer
+    //on fait jouer la voix priority[0]
+    oscFreq[priority[0]] = noteToFreq(note);
+    n_interruption[priority[0]] = oscInterruptFreq / oscFreq[priority[0]];
+    //on retourne le tableau
+    int pass = priority[nb_note_on];
+    for(int i = 0 ; i < N_VOIX-1 ; ++i)
+    {
+      priority[i] = priority[i+1]; 
+    }
+    //la dernière case prend la valeur de l'ancienne première
+    priority[N_VOIX-1] = pass;
+  }
   
-  gate[nb_note_on] = true;
+  
   nb_note_on++;
   //print_tab(8, note);
 }
@@ -104,8 +133,11 @@ void onNoteOff(byte channel, byte note, byte velocity)
     digitalWrite(ledMidi, LOW);
     nb_note_on--;    
     gate[nb_note_on] = false;//changer ça
+
     
-    
+
+    //La note qu'on enlève est tab_entree[note]
+    //à partir de la note qu'on enlève on décalle tout le tableau vers la gauche 
     for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
     {
       tab_note[j] = tab_note[j+1];
