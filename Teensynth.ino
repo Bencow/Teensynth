@@ -3,6 +3,7 @@
 #define TAB_SIZE 8
 #define N_VOIX 2
 #define N_SINE 1000 //nombre de sample dans la look up table de sin
+#define N_WAVESHAPE 3 //carré, dente de scie et sinusoïde
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -12,7 +13,14 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréquence d'echantillonnage
+const int waveShapeButtonPin = 17;
+int wave_current_state = 0;
+int wave_prev_state = 0;
+int waveshape_osc = 1;//est la même pour toutes les voix
+
+int count = 0;
+
+const unsigned int oscInterruptFreq = 10000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -21,6 +29,7 @@ bool found = false;
 int audio_output = 0;
 
 int sine_table[N_SINE];
+
 
 volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
@@ -54,8 +63,10 @@ void setup()
   //tests
   pinMode(ledMidi, OUTPUT);
   pinMode(test_input_pin, INPUT);
+  pinMode(waveShapeButtonPin, INPUT);
   pinMode(built_in_ledPin, OUTPUT);
   pinMode(audioPin, OUTPUT);
+  
   
   //initializing the PORTF (pin 38 to 45)
   int i = 0;
@@ -134,7 +145,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     assignation_voix();
-    found = false;  
+    found = false;
 }
 
 void print_tab(int type, int note)
@@ -159,19 +170,40 @@ int noteToOscPeriod(int note)
 {
   return oscInterruptFreq/noteToFreq(note);
 }
-
-void oscInterrupt()
+bool oneVoiceIsPlaying()
 {
-  
+  for(int i = 0 ; i < N_VOIX ; ++i)
+  {
+    if(gate[i])
+    {
+      return true;
+    }
+  }
+  return false;
+}
+void oscInterrupt()
+{  
   for(int i = 0 ; i < N_VOIX ; ++i)
   {
     oscCounter[i]++;
-    audio_output += squareWave(i);
+    if(waveshape_osc == 1)
+    {
+      audio_output += squareWave(i);
+    }
+    else if(waveshape_osc == 2)
+    {
+      audio_output += sawtooth(i);
+    }
+    else if(waveshape_osc == 3)
+    {
+      audio_output += sinusoide(i);
+    }
+    
   }
   
   
   //si l'une des voix est en train de jouer
-  if(gate[0] || gate[1])
+  if(oneVoiceIsPlaying())
   {
     PORTF = audio_output;
   }
@@ -200,41 +232,39 @@ byte squareWave(int voix)
   }
   return 0;
 }
-/*
+
 byte sawtooth(int voix)
 {
-  if(gate)
+  if(gate[voix])
   {
-    if(oscCounter  >= n_interruption )
+    if(oscCounter[voix]  >= n_interruption[voix])
     {
-      oscCounter = 0;
+      oscCounter[voix] = 0;
     }
-    PORTF = oscCounter * 255 / n_interruption;
+    return oscCounter[voix] * 255 / n_interruption[voix];
   }
   else
   {
-    PORTF = 0;
+    return 0;
   }
 }
 
 byte sinusoide(int voix)
 {
-  if(gate)
+  if(gate[voix])
   {
-    if(oscCounter  >= n_interruption )
+    if(oscCounter[voix]  >= n_interruption[voix] )
     {
-      oscCounter = 0;
+      oscCounter[voix] = 0;
     }
-    //int var = oscCounter*N_SINE/n_interruption;
-    PORTF = sine_table[oscCounter*N_SINE/n_interruption];
-    //Serial.println(var);
+    return sine_table[oscCounter[voix] * N_SINE / n_interruption[voix]];
   }
   else
   {
-    PORTF = 0;
+    return 0;
   }
 }
-*/
+
 
 /*
 void playWithButton()
@@ -256,9 +286,36 @@ void playWithButton()
 }
 */
 
+
+void updateWaveShape()
+{
+  wave_prev_state = wave_current_state;
+  wave_current_state = digitalRead(waveShapeButtonPin);
+  if(wave_current_state == HIGH && wave_prev_state == LOW)
+  {
+    if(waveshape_osc >= N_WAVESHAPE)
+    {
+      waveshape_osc = 1;
+    }
+    else
+    {
+      waveshape_osc++;
+    }
+  }
+}
+
+
 void loop()
 {
+  count++;
   //usbMIDI.read();
   MIDI.read();
+  updateWaveShape();
+  /*
+  if(count%10000 == 2)
+  {
+    Serial.println(waveshape_osc);
+  }
+  */
   //playWithButton();
 }
