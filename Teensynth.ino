@@ -29,8 +29,6 @@ volatile unsigned int oscCounter[N_VOIX];
 volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
-byte priority[N_VOIX];
-
 
 void setup()
 {
@@ -40,8 +38,6 @@ void setup()
   {
     tab_note[i] = -1;
   }
-
-
   for(int i = 0 ; i < N_SINE ; i++)
   {
     sine_table[i] = 255 * sin(2*PI*i/N_SINE);
@@ -53,7 +49,6 @@ void setup()
     oscFreq[i] = 440;
     oscCounter[i] = 0;
     n_interruption[i] = 90; //La 440 pour Fe=40000
-    priority[i] = 0;
   }
 
   //tests
@@ -84,17 +79,16 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-
   
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   
   //On assigne les voix aux différentes notes
-  assignation_voix_2();
+  assignation_voix();
 }
 
-void assignation_voix_2()
+void assignation_voix()
 {
   //On assigne les voix aux note les plus à droite dans tab_note
   //Pour chaque voix
@@ -139,7 +133,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
          nb_note_on--;
       }
     }
-    assignation_voix_2();
+    assignation_voix();
     found = false;  
 }
 
