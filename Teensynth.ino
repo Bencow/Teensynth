@@ -12,7 +12,7 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 10000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -120,37 +120,7 @@ void sendNoteToVoice(int note, int voice)
   n_interruption[voice] = oscInterruptFreq / oscFreq[voice];
   gate[voice] = true;
 }
-/*
-void assignation_voix()
-{
-    //Si il reste des oscillateurs inactifs
-  if(nb_note_on < N_VOIX)
-  {
-    //on leur fait jouer la note
-    oscFreq[nb_note_on] = noteToFreq(note);
-    n_interruption[nb_note_on] = oscInterruptFreq / oscFreq[nb_note_on];//nombre d'interruption par période de l'oscillateur
-    priority[nb_note_on] = nb_note_on;
-    tab_entree[note] = nb_note_on;
-    gate[nb_note_on] = true;
-  }
-  else
-  {
-    //On envoie cette note à l'oscillateur qui a joué le premier sa note
-    priority[0];//contient l'indice de l'oscillateur à changer
-    //on fait jouer la voix priority[0]
-    oscFreq[priority[0]] = noteToFreq(note);
-    n_interruption[priority[0]] = oscInterruptFreq / oscFreq[priority[0]];
-    //on retourne le tableau
-    int pass = priority[nb_note_on];
-    for(int i = 0 ; i < N_VOIX-1 ; ++i)
-    {
-      priority[i] = priority[i+1]; 
-    }
-    //la dernière case prend la valeur de l'ancienne première
-    priority[N_VOIX-1] = pass;
-  }
-}
-*/
+
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
@@ -167,26 +137,10 @@ void onNoteOff(byte channel, byte note, byte velocity)
          }
          tab_note[nb_note_on - 1] = -1;
          nb_note_on--;
-         //Serial.println("yo");
       }
     }
     assignation_voix_2();
-    found = false;
-    
-    /*
-    if(nb_note_on <= 0)
-    {
-      gate = false;
-    }
-    else
-    {
-      oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
-      gate = true;
-      
-    }
-    */
-    //print_tab(9, note);
-    
+    found = false;  
 }
 
 void print_tab(int type, int note)
