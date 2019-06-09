@@ -16,7 +16,6 @@ const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréqu
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
-int tab_entree[255];
 int nb_note_on = 0;
 bool found = false;
 int audio_output = 0;
@@ -41,6 +40,7 @@ void setup()
   {
     tab_note[i] = -1;
   }
+
   for(int i = 0 ; i < 255 ; ++i)
   {
     tab_entree[i] = 0;
@@ -58,6 +58,7 @@ void setup()
     n_interruption[i] = 90; //La 440 pour Fe=40000
     priority[i] = 0;
   }
+
   //tests
   pinMode(ledMidi, OUTPUT);
   pinMode(test_input_pin, INPUT);
@@ -94,6 +95,7 @@ void onNoteOn(byte channel, byte note, byte velocity)
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
 
+
   tab_entree[note] = nb_note_on;
   */
   //Si il reste des oscillateurs inactifs
@@ -123,7 +125,6 @@ void onNoteOn(byte channel, byte note, byte velocity)
     priority[N_VOIX-1] = pass;
   }
   
-  
   nb_note_on++;
   //print_tab(8, note);
 }
@@ -133,6 +134,22 @@ void onNoteOff(byte channel, byte note, byte velocity)
     digitalWrite(ledMidi, LOW);
     nb_note_on--;    
     gate[nb_note_on] = false;//changer ça
+
+
+    for(int i = 0 ; i < nb_note_on ; i++)
+    {
+      if( tab_note[i] == note && !found )
+      {
+        found = true;
+        
+        for(int j = i ; j < nb_note_on - 1 ; j++)
+         {
+          tab_note[j] = tab_note[j+1];
+         }
+         tab_note[nb_note_on - 1] = -1;
+         nb_note_on--;
+      }
+    }
 
     
 
@@ -146,6 +163,7 @@ void onNoteOff(byte channel, byte note, byte velocity)
     tab_note[nb_note_on - 1] = -1;
     nb_note_on--;
     
+
     
     if(nb_note_on <= 0)
     {
