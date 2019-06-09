@@ -1,6 +1,8 @@
 #include <TimerOne.h>
 #include <MIDI.h>
 #define TAB_SIZE 8
+#define N_VOIX 2
+#define N_SINE 1000 //nombre de sample dans la look up table de sin
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -16,22 +18,47 @@ const float masterTune = 440.f;
 int tab_note[TAB_SIZE];
 int nb_note_on = 0;
 bool found = false;
+int audio_output = 0;
+
+int sine_table[N_SINE];
 
 volatile long oscPeriod = 240;
-volatile int oscFreq = 440;//On commence par un la4
-volatile unsigned long oscCounter = 0;
-volatile bool phase = false;
-volatile bool gate = false;
+volatile int oscFreq[N_VOIX];
+int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
+volatile unsigned int oscCounter[N_VOIX];
+volatile bool phase[N_VOIX];//à refaire
+volatile bool gate[N_VOIX];
+
+byte priority[N_VOIX];
 
 
-void setup() 
+void setup()
 {
   //Serial.begin(9600);
-
+  
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
     tab_note[i] = -1;
   }
+
+  for(int i = 0 ; i < 255 ; ++i)
+  {
+    tab_entree[i] = 0;
+  }
+  for(int i = 0 ; i < N_SINE ; i++)
+  {
+    sine_table[i] = 255 * sin(2*PI*i/N_SINE);
+  }
+  for(int i = 0 ;i < N_VOIX ; i++)
+  {
+    gate[i] = false;
+    phase[i] = false;
+    oscFreq[i] = 440;
+    oscCounter[i] = 0;
+    n_interruption[i] = 90; //La 440 pour Fe=40000
+    priority[i] = 0;
+  }
+
   //tests
   pinMode(ledMidi, OUTPUT);
   pinMode(test_input_pin, INPUT);
@@ -57,27 +84,57 @@ void setup()
   Timer1.attachInterrupt(oscInterrupt);
 }
 
-
-
-
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  //oscFreq = noteToFreq(note);
-
+  
+  
+  /*
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+
+
+  tab_entree[note] = nb_note_on;
+  */
+  //Si il reste des oscillateurs inactifs
+  if(nb_note_on < N_VOIX)
+  {
+    //on leur fait jouer la note
+    oscFreq[nb_note_on] = noteToFreq(note);
+    n_interruption[nb_note_on] = oscInterruptFreq / oscFreq[nb_note_on];//nombre d'interruption par période de l'oscillateur
+    priority[nb_note_on] = nb_note_on;
+    tab_entree[note] = nb_note_on;
+    gate[nb_note_on] = true;
+  }
+  else
+  {
+    //On envoie cette note à l'oscillateur qui a joué le premier sa note
+    priority[0];//contient l'indice de l'oscillateur à changer
+    //on fait jouer la voix priority[0]
+    oscFreq[priority[0]] = noteToFreq(note);
+    n_interruption[priority[0]] = oscInterruptFreq / oscFreq[priority[0]];
+    //on retourne le tableau
+    int pass = priority[nb_note_on];
+    for(int i = 0 ; i < N_VOIX-1 ; ++i)
+    {
+      priority[i] = priority[i+1]; 
+    }
+    //la dernière case prend la valeur de l'ancienne première
+    priority[N_VOIX-1] = pass;
+  }
   
-  gate = true;
+  nb_note_on++;
   //print_tab(8, note);
 }
 
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
-    //gate = false;
+    nb_note_on--;    
+    gate[nb_note_on] = false;//changer ça
+
 
     for(int i = 0 ; i < nb_note_on ; i++)
     {
@@ -93,6 +150,20 @@ void onNoteOff(byte channel, byte note, byte velocity)
          nb_note_on--;
       }
     }
+
+    
+
+    //La note qu'on enlève est tab_entree[note]
+    //à partir de la note qu'on enlève on décalle tout le tableau vers la gauche 
+    for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
+    {
+      tab_note[j] = tab_note[j+1];
+      tab_entree[tab_note[j]]--;
+    }
+    tab_note[nb_note_on - 1] = -1;
+    nb_note_on--;
+    
+
     
     if(nb_note_on <= 0)
     {
@@ -105,7 +176,6 @@ void onNoteOff(byte channel, byte note, byte velocity)
       
     }
     //print_tab(9, note);
-    found = false;
 }
 
 void print_tab(int type, int note)
@@ -133,67 +203,54 @@ int noteToOscPeriod(int note)
 
 void oscInterrupt()
 {
-  oscCounter++;
-  //sawtooth();
-  squareWave_8_bit();
-}
-void squareWave_8_bit()
-{
-  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
+  
+  for(int i = 0 ; i < N_VOIX ; ++i)
   {
-    oscCounter = 0;
-    if (phase && gate)
-    {
-      PORTF = 255;
-      //digitalWrite(audioPin, HIGH);
-      digitalWrite(built_in_ledPin, HIGH);
-    }
-    else
-    {
-      PORTF = 0;
-      //digitalWrite(audioPin, LOW);
-      digitalWrite(built_in_ledPin, LOW);
-    }
-    phase = !phase;
+    oscCounter[i]++;
+    audio_output += squareWave(i);
   }
-}
-void squareWave_1_bit()
-{
-  if(oscCounter >= oscInterruptFreq / (2 * oscFreq))//on divise par deux pour changer toutes les 1/2 période
+  
+  
+  //si l'une des voix est en train de jouer
+  if(gate[0] || gate[1] || gate[2])
   {
-    oscCounter = 0;
-    if (phase && gate)
-    {
-      digitalWrite(audioPin, HIGH);
-      digitalWrite(built_in_ledPin, HIGH);
-    }
-    else
-    {
-      digitalWrite(audioPin, LOW);
-      digitalWrite(built_in_ledPin, LOW);
-    }
-    phase = !phase;
-  }
-}
-void sawtooth_test()
-{
-  if(true)
-  {
-    PORTF = oscCounter;
-    digitalWrite(built_in_ledPin, HIGH);
+    PORTF = audio_output;
   }
   else
   {
-    digitalWrite(built_in_ledPin, LOW);
+    PORTF = 0;
   }
+  audio_output = 0;
+  
 }
-void sawtooth()
+byte squareWave(int voix)
+{
+  if(oscCounter[voix] >= oscInterruptFreq / (2 * oscFreq[voix]))//on divise par deux pour changer toutes les 1/2 période
+  {
+    oscCounter[voix] = 0;
+    if (phase[voix] && gate[voix])
+    {
+      phase[voix] = !phase[voix];
+      return 255;
+    }
+    else
+    {
+      phase[voix] = !phase[voix];
+      return 0;
+    }
+  }
+  return 0;
+}
+/*
+byte sawtooth(int voix)
 {
   if(gate)
   {
-    //PORTF = 255 * oscFreq * (oscCounter%255);
-    PORTF = oscFreq * oscCounter * 255 / oscInterruptFreq;
-    //PORTF = oscFreq * 
+    if(oscCounter  >= n_interruption )
+    {
+      oscCounter = 0;
+    }
+    PORTF = oscCounter * 255 / n_interruption;
   }
   else
   {
@@ -201,6 +258,26 @@ void sawtooth()
   }
 }
 
+byte sinusoide(int voix)
+{
+  if(gate)
+  {
+    if(oscCounter  >= n_interruption )
+    {
+      oscCounter = 0;
+    }
+    //int var = oscCounter*N_SINE/n_interruption;
+    PORTF = sine_table[oscCounter*N_SINE/n_interruption];
+    //Serial.println(var);
+  }
+  else
+  {
+    PORTF = 0;
+  }
+}
+*/
+
+/*
 void playWithButton()
 {
   //Petit test pour jouer avec un pushbuton
@@ -218,8 +295,9 @@ void playWithButton()
     gate = false;
   }
 }
+*/
 
-void loop() 
+void loop()
 {
   //usbMIDI.read();
   MIDI.read();
