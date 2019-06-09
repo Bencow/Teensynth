@@ -12,7 +12,7 @@ const int ledMidi = 5;
 const int built_in_ledPin = 6;
 const int audioPin = 8;
 const int debugPin = 9;
-const unsigned int oscInterruptFreq = 20000;//fréquence d'interruption = Fréquence d'echantillonnage
+const unsigned int oscInterruptFreq = 10000;//fréquence d'interruption = Fréquence d'echantillonnage
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
@@ -41,10 +41,7 @@ void setup()
     tab_note[i] = -1;
   }
 
-  for(int i = 0 ; i < 255 ; ++i)
-  {
-    tab_entree[i] = 0;
-  }
+
   for(int i = 0 ; i < N_SINE ; i++)
   {
     sine_table[i] = 255 * sin(2*PI*i/N_SINE);
@@ -87,18 +84,46 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
+
   
-  
-  /*
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
-  oscFreq = noteToFreq(tab_note[nb_note_on -1]);//on soustrait 1 pour convertir en indice du tableau
+  
+  //On assigne les voix aux différentes notes
+  assignation_voix_2();
+}
 
+void assignation_voix_2()
+{
+  //On assigne les voix aux note les plus à droite dans tab_note
+  //Pour chaque voix
+  for(int i = 0 ; i < N_VOIX ; ++i)
+  {
+    if(nb_note_on > i)
+    {
+      //On envoie la note à la voix i
+      sendNoteToVoice(tab_note[i], i);
+    }
+    else
+    {
+      //shut down the voice i
+      gate[i] = false;
+    }
+  }
+}
 
-  tab_entree[note] = nb_note_on;
-  */
-  //Si il reste des oscillateurs inactifs
+void sendNoteToVoice(int note, int voice)
+{
+  oscFreq[voice] = noteToFreq(note);
+  //calcul du nombre d'interruption par période de l'oscillateur
+  n_interruption[voice] = oscInterruptFreq / oscFreq[voice];
+  gate[voice] = true;
+}
+/*
+void assignation_voix()
+{
+    //Si il reste des oscillateurs inactifs
   if(nb_note_on < N_VOIX)
   {
     //on leur fait jouer la note
@@ -124,17 +149,11 @@ void onNoteOn(byte channel, byte note, byte velocity)
     //la dernière case prend la valeur de l'ancienne première
     priority[N_VOIX-1] = pass;
   }
-  
-  nb_note_on++;
-  //print_tab(8, note);
 }
-
+*/
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
-    nb_note_on--;    
-    gate[nb_note_on] = false;//changer ça
-
 
     for(int i = 0 ; i < nb_note_on ; i++)
     {
@@ -148,23 +167,13 @@ void onNoteOff(byte channel, byte note, byte velocity)
          }
          tab_note[nb_note_on - 1] = -1;
          nb_note_on--;
+         //Serial.println("yo");
       }
     }
-
+    assignation_voix_2();
+    found = false;
     
-
-    //La note qu'on enlève est tab_entree[note]
-    //à partir de la note qu'on enlève on décalle tout le tableau vers la gauche 
-    for(int j = tab_entree[note] -1 ; j < nb_note_on ; j++)
-    {
-      tab_note[j] = tab_note[j+1];
-      tab_entree[tab_note[j]]--;
-    }
-    tab_note[nb_note_on - 1] = -1;
-    nb_note_on--;
-    
-
-    
+    /*
     if(nb_note_on <= 0)
     {
       gate = false;
@@ -175,7 +184,9 @@ void onNoteOff(byte channel, byte note, byte velocity)
       gate = true;
       
     }
+    */
     //print_tab(9, note);
+    
 }
 
 void print_tab(int type, int note)
@@ -212,7 +223,7 @@ void oscInterrupt()
   
   
   //si l'une des voix est en train de jouer
-  if(gate[0] || gate[1] || gate[2])
+  if(gate[0] || gate[1])
   {
     PORTF = audio_output;
   }
