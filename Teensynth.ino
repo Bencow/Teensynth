@@ -2,7 +2,7 @@
 #include <MIDI.h>
 
 #define TAB_SIZE 8
-#define N_VOIX 2
+#define N_VOIX 1
 #define N_SINE 1000 //nombre de sample dans la look up table de sin
 #define N_WAVESHAPE 3 //carré, dente de scie et sinusoïde
 
@@ -34,6 +34,7 @@ volatile int audio_output = 0;
 int sine_table[N_SINE];
 
 //VOICES variables
+int nombre_de_voix_activee = 1;
 volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
 volatile int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
@@ -42,11 +43,12 @@ volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
 //LFO
+bool lfo_on = true;
 volatile int lfoFreq = 1;
 volatile int lfo_periode = 1000;//en milisecondes
 volatile int lfo_waveshape = 1;
 volatile int lfo_counter = 0;
-volatile int lfo_n_interruption = oscInterruptFreq;
+volatile int lfo_n_interruption = oscInterruptFreq;//équivaut à une seconde
 volatile bool lfo_phase = false;
 
 void setup()
@@ -104,13 +106,14 @@ void setup()
 void onNoteOn(byte channel, byte note, byte velocity)
 { 
   digitalWrite(ledMidi, HIGH);
-  
+  noInterrupts();
   //On ajoute la note dans le tableau
   tab_note[nb_note_on] = note;
   nb_note_on++;//on incrémente seulement après nb_note_on
   
   //On assigne les voix aux différentes notes
   assignation_voix();
+  interrupts();
 }
 
 void assignation_voix()
@@ -143,7 +146,7 @@ void sendNoteToVoice(int note, int voice)
 void onNoteOff(byte channel, byte note, byte velocity)
 {
     digitalWrite(ledMidi, LOW);
-
+    noInterrupts();
     for(int i = 0 ; i < nb_note_on ; i++)
     {
       if( tab_note[i] == note && !found )
@@ -159,9 +162,11 @@ void onNoteOff(byte channel, byte note, byte velocity)
       }
     }
     assignation_voix();
+    interrupts();
     found = false;
 }
 
+//debug
 void print_tab(int type, int note)
 {
     for(int i = 0 ; i < TAB_SIZE ; i++)
@@ -237,25 +242,22 @@ byte get_LFO_value()
   //Serial.println(lfo_squareWave());
   return lfo_squareWave();
 }
-
 byte lfo_squareWave()
 {
-  if(lfo_counter >= lfo_n_interruption)//on divise par deux pour changer toutes les 1/2 période
+  //si le compteur dépasse le nombre d'interruption par période
+  if(lfo_counter >= lfo_n_interruption)
   {
+    //on le réinitialise
     lfo_counter = 0;
-    if (lfo_phase)
-    {
-      lfo_phase = !lfo_phase;
-      return 255;
-    }
-    else
-    {
-      lfo_phase = !lfo_phase;
-      return 0;
-    }
+  }
+  if(lfo_counter >= lfo_n_interruption/2)
+  {
+    return 255;
   }
   else
+  {
     return 0;
+  }
 }
 
 byte lfo_sinusoide()//ne marche pas
@@ -275,8 +277,6 @@ byte lfo_sawtooth()
   {
     lfo_counter = 0;
   }
-  Serial.println(lfo_counter);
-  //Serial.println(lfo_counter * 255 / lfo_n_interruption);
   return lfo_counter * 255 / lfo_n_interruption;
 }
 
@@ -289,8 +289,14 @@ byte squareWave(int voix)
     if (phase[voix] && gate[voix])
     {
       phase[voix] = !phase[voix];
-      return get_LFO_value();
-      //return 255;
+      if(lfo_on)
+      {
+        return get_LFO_value();
+      }
+      else
+      {
+        return 255;
+      }
     }
     else
     {
@@ -379,7 +385,6 @@ void loop()
   //usbMIDI.read();
   MIDI.read();
   updateWaveShape();
-  int d = analogRead(knobPin);
   //Serial.println(d);
   //playWithButton();
 }
