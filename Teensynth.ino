@@ -8,13 +8,15 @@
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-const int test_input_pin = 7;//pour faire des tests quand on n'a pas de MIDI
+//const int test_input_pin = ;//pour faire des tests quand on n'a pas de MIDI
 
-const int ledMidi = 5;
+const int ledMidi = 1;
 const int built_in_ledPin = 6;
-const int audioPin = 8;
-const int debugPin = 9;
-const int waveShapeButtonPin = 17;
+//const int audioPin = ;
+const int debugPin = 3;
+const int knobPin = A0;
+const int waveShapeButtonPin = 4;
+
 int wave_current_state = 0;
 int wave_prev_state = 0;
 int waveshape_osc = 1;//est la même pour toutes les voix
@@ -25,30 +27,32 @@ const unsigned int oscInterruptFreq = 10000;//fréquence d'interruption = Fréqu
 const float masterTune = 440.f;
 
 int tab_note[TAB_SIZE];
-int nb_note_on = 0;
+volatile int nb_note_on = 0;
 bool found = false;
-int audio_output = 0;
+volatile int audio_output = 0;
 
 int sine_table[N_SINE];
 
 //VOICES variables
 volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
-int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
+volatile int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
 volatile unsigned int oscCounter[N_VOIX];
 volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
 //LFO
-int lfoFreq = 1;
-int lfo_periode = 1000;//en milisecondes
-int lfo_waveshape = 1;
-int lfo_counter = 0;
-int lfo_n_interruption = oscInterruptFreq;
+volatile int lfoFreq = 1;
+volatile int lfo_periode = 1000;//en milisecondes
+volatile int lfo_waveshape = 1;
+volatile int lfo_counter = 0;
+volatile int lfo_n_interruption = oscInterruptFreq;
+volatile bool lfo_phase = false;
 
 void setup()
 {
   Serial.begin(9600);
+  //digitalWrite(built_in_ledPin, HIGH);
   
   for(int i = 0 ; i < TAB_SIZE ; ++i)
   {
@@ -70,17 +74,15 @@ void setup()
   lfoFreq = 1;//Hz
   //calcul du nombre d'interruption par période de l'oscillateur
   lfo_n_interruption = oscInterruptFreq / lfoFreq;
-  Serial.println(lfo_n_interruption);
 
   //tests
   pinMode(ledMidi, OUTPUT);
-  pinMode(test_input_pin, INPUT);
   pinMode(waveShapeButtonPin, INPUT);
   pinMode(built_in_ledPin, OUTPUT);
-  pinMode(audioPin, OUTPUT);
+  pinMode(knobPin, INPUT);
   
   
-  //initializing the PORTF (pin 38 to 45)
+  //initializing the PORTC (pin 38 to 45)
   int i = 0;
   for(i = 38 ; i <= 45 ; i++)
   {
@@ -197,7 +199,11 @@ void oscInterrupt()
 {  
   for(int i = 0 ; i < N_VOIX ; ++i)
   {
-    oscCounter[i]++;
+    if(gate[i])
+    {
+      oscCounter[i]++;
+    }
+    
     if(waveshape_osc == 1)
     {
       audio_output += squareWave(i);
@@ -216,11 +222,11 @@ void oscInterrupt()
   //si l'une des voix est en train de jouer
   if(oneVoiceIsPlaying())
   {
-    PORTF = audio_output;
+    PORTC = audio_output;
   }
   else
   {
-    PORTF = 0;
+    PORTC = 0;
   }
   audio_output = 0;
 }
@@ -228,7 +234,28 @@ void oscInterrupt()
 byte get_LFO_value()
 {
   //return lfo_sinusoide();
-  return lfo_sawtooth();
+  //Serial.println(lfo_squareWave());
+  return lfo_squareWave();
+}
+
+byte lfo_squareWave()
+{
+  if(lfo_counter >= lfo_n_interruption)//on divise par deux pour changer toutes les 1/2 période
+  {
+    lfo_counter = 0;
+    if (lfo_phase)
+    {
+      lfo_phase = !lfo_phase;
+      return 255;
+    }
+    else
+    {
+      lfo_phase = !lfo_phase;
+      return 0;
+    }
+  }
+  else
+    return 0;
 }
 
 byte lfo_sinusoide()//ne marche pas
@@ -263,6 +290,7 @@ byte squareWave(int voix)
     {
       phase[voix] = !phase[voix];
       return get_LFO_value();
+      //return 255;
     }
     else
     {
@@ -351,6 +379,7 @@ void loop()
   //usbMIDI.read();
   MIDI.read();
   updateWaveShape();
-
+  int d = analogRead(knobPin);
+  //Serial.println(d);
   //playWithButton();
 }
