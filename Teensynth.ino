@@ -16,10 +16,15 @@ const int built_in_ledPin = 6;
 const int debugPin = 3;
 const int knobPin = A0;
 const int waveShapeButtonPin = 4;
+const int lfoStateButtonPin = 5;
+const int lfoLedPin = 0;
 
 int wave_current_state = 0;
 int wave_prev_state = 0;
-int waveshape_osc = 1;//est la même pour toutes les voix
+int waveshape_osc = 1;//forme d'onde de l'oscillateur (est la même pour toutes les voix)
+
+bool lfo_current_state;//var pour détec
+bool lfo_prev_state;
 
 int count = 0;
 
@@ -39,17 +44,20 @@ volatile long oscPeriod = 240;
 volatile int oscFreq[N_VOIX];
 volatile int n_interruption[N_VOIX];//nombre d'interruption par période de l'oscillateur
 volatile unsigned int oscCounter[N_VOIX];
-volatile bool phase[N_VOIX];//à refaire
 volatile bool gate[N_VOIX];
 
 //LFO
-bool lfo_on = true;
+bool lfo_on = false;
 volatile int lfoFreq = 1;
 volatile int lfo_periode = 1000;//en milisecondes
 volatile int lfo_waveshape = 1;
 volatile int lfo_counter = 0;
 volatile int lfo_n_interruption = oscInterruptFreq;//équivaut à une seconde
-volatile bool lfo_phase = false;
+
+
+
+
+
 
 void setup()
 {
@@ -67,7 +75,6 @@ void setup()
   for(int i = 0 ;i < N_VOIX ; i++)
   {
     gate[i] = false;
-    phase[i] = false;
     oscFreq[i] = 440;
     oscCounter[i] = 0;
     n_interruption[i] = 90; //La 440 pour Fe=40000
@@ -280,31 +287,27 @@ byte lfo_sawtooth()
   return lfo_counter * 255 / lfo_n_interruption;
 }
 
-
 byte squareWave(int voix)
 {
-  if(oscCounter[voix] >= oscInterruptFreq / (2 * oscFreq[voix]))//on divise par deux pour changer toutes les 1/2 période
+  if(oscCounter[voix] >= n_interruption[voix])
   {
     oscCounter[voix] = 0;
-    if (phase[voix] && gate[voix])
-    {
-      phase[voix] = !phase[voix];
-      if(lfo_on)
+  }
+  if(oscCounter[voix] <= n_interruption[voix]/2)
+  {
+      if(lfo_on)//si le lfo est activé
       {
-        return get_LFO_value();
+        return get_LFO_value();//on envoie sa valeur
       }
-      else
+      else//sinon on envoie 255
       {
         return 255;
       }
-    }
-    else
-    {
-      phase[voix] = !phase[voix];
-      return 0;
-    }
   }
-  return 0;
+  else
+  {
+    return 0;
+  }
 }
 
 byte sawtooth(int voix)
@@ -378,6 +381,18 @@ void updateWaveShape()
   }
 }
 
+void updateLfoState()
+{
+  lfo_prev_state = lfo_current_state;
+  lfo_current_state = digitalRead(lfoStateButtonPin);
+  
+  //sur un front montant du boutton
+  if(lfo_current_state == HIGH && lfo_prev_state == LOW)
+  {
+    lfo_on = !lfo_on;
+  }
+  Serial.println(lfo_on);
+}
 
 void loop()
 {
@@ -385,6 +400,7 @@ void loop()
   //usbMIDI.read();
   MIDI.read();
   updateWaveShape();
+  updateLfoState();
   //Serial.println(d);
   //playWithButton();
 }
