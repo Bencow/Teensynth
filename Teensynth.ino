@@ -318,7 +318,7 @@ byte sawtooth(int voix)
     {
       oscCounter[voix] = 0;
     }
-    return oscCounter[voix] * 255 / n_interruption[voix];
+    return oscCounter[voix] * get_LFO_value() / n_interruption[voix];
   }
   else
   {
@@ -391,7 +391,14 @@ void updateLfoState()
   {
     lfo_on = !lfo_on;
   }
-  Serial.println(lfo_on);
+  //Serial.println(lfo_on);
+}
+
+void updateLfoFreq()
+{
+  int knobvalue = analogRead(knobPin);
+  lfoFreq = 1 + knobvalue * 20 / 1024;
+  lfo_n_interruption = oscInterruptFreq / lfoFreq;
 }
 
 void loop()
@@ -401,6 +408,7 @@ void loop()
   MIDI.read();
   updateWaveShape();
   updateLfoState();
+  updateLfoFreq();
   //Serial.println(d);
   //playWithButton();
 }
